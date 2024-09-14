@@ -1,3 +1,4 @@
+from threading import Thread
 from flask import Flask, Response, send_from_directory, render_template
 import cv2
 import os
@@ -85,4 +86,10 @@ def static_files(path):
     return send_from_directory(directory='static', path=path)
 
 if __name__ == "__main__":
+
+    global thread
+    thread = Thread(target=generate_frames, args = {})
+    thread.start()
+
+
     app.run(host="0.0.0.0", port=8000)
