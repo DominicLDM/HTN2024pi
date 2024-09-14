@@ -5,12 +5,15 @@ import os
 import requests
 import io
 import time
+from ultralytics import YOLO
+
+model = YOLO("./best.pt")
 
 app = Flask(__name__)
 
 # Initialize camera and face detection model (Haar Cascade)
 cap = cv2.VideoCapture(0)
-face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+# face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
 frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -20,7 +23,7 @@ fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 def generate_frames():
     clip_number = 0
     start_time = time.time()
-    out = cv2.VideoWriter(f'output_{clip_number}.mp4', fourcc, 20.0, (frame_width, frame_height))
+    out = cv2.VideoWriter(f'./outputs/output_{clip_number}.mp4', fourcc, 20.0, (frame_width, frame_height))
     while True:
         # Capture frame-by-frame from the camera
         ret, frame = cap.read()
@@ -33,21 +36,30 @@ def generate_frames():
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         # Detect faces in the frame
-        faces = face_cascade.detectMultiScale(gray_frame, 1.3, 5)
+        # faces = face_cascade.detectMultiScale(gray_frame, 1.3, 5)
 
-        # Draw rectangles around detected faces
-        for (x, y, w, h) in faces:
-            cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
+        results = model(frame)
+        result = results[0]
+
+        boxes = result.boxes.xyxy
+        
+        for i, box in enumerate(boxes):
+            x1, y1, x2, y2 = map(int, box)  # Convert box coordinates to integers
             
+            # Draw the bounding box on the frame
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
+
+
         out.write(frame)
         
-        if time.time() - start_time >= 20:
+        if time.time() - start_time >= 10:
             out.release()
-            transcribed_text = transcribe(f'output_{clip_number}.mp4')
-            print(f'Transcription for clip {clip_number}: {transcribed_text}')  
+            thread = Thread(target=process_video, args={clip_number})
+            thread.start()
+              
             clip_number += 1
             start_time = time.time()
-            out = cv2.VideoWriter(f'output_{clip_number}.mp4', fourcc, 20.0, (frame_width, frame_height))
+            out = cv2.VideoWriter(f'./outputs/output_{clip_number}.mp4', fourcc, 20.0, (frame_width, frame_height))
 
         # Encode the frame in JPEG format
         _, buffer = cv2.imencode('.jpg', frame)
@@ -59,6 +71,11 @@ def generate_frames():
     out.release()
     cap.release()
     cv2.destroyAllWindows
+
+def process_video(clip_number):
+    transcribed_text = transcribe(f'./outputs/output_{clip_number}.mp4')
+    print(f'Transcription for clip {clip_number}: {transcribed_text}')
+
 
 def transcribe(file_path):
     url = "https://symphoniclabs--symphonet-vsr-modal-htn-model-upload-static-htn.modal.run"
@@ -86,10 +103,6 @@ def static_files(path):
     return send_from_directory(directory='static', path=path)
 
 if __name__ == "__main__":
-
-    global thread
-    thread = Thread(target=generate_frames, args = {})
-    thread.start()
 
 
     app.run(host="0.0.0.0", port=8000)
