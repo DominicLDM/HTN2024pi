@@ -222,7 +222,9 @@ def process_video(clip_number):
     transcribed_text = transcribe(f'./outputs/output_{clip_number}.mp4')
     content = f'Transcription for clip {clip_number}: {transcribed_text}'
     response = chat_session.send_message(transcribed_text)
-    with open('output.txt', 'a') as file:
+    with open('logs.txt', 'a') as file:
+        file.write(content + '\n' + response.text + '\n\n')
+    with open('output.txt', 'w') as file:
         file.write(content + '\n' + response.text + '\n\n')
 
 
