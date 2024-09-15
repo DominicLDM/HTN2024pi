@@ -8,8 +8,13 @@ import time
 from ultralytics import YOLO
 import os
 import google.generativeai as genai
+from dotenv import load_dotenv
 
 genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+
+load_dotenv()
+
+gemini_api_key = os.getenv("GEMINI_API_KEY")
 
 # Create the model
 generation_config = {
@@ -135,6 +140,8 @@ def process_video(clip_number):
     with open('output.txt', 'a') as file:
         file.write(content, '\n')
     response = chat_session.send_message(transcribed_text)
+
+    
 
 
 
