@@ -10,11 +10,12 @@ import os
 import google.generativeai as genai
 from dotenv import load_dotenv
 
-genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 
 load_dotenv()
 
 gemini_api_key = os.getenv("GEMINI_API_KEY")
+
+genai.configure(api_key=gemini_api_key)
 
 # Create the model
 generation_config = {
@@ -137,12 +138,9 @@ def generate_frames():
 def process_video(clip_number):
     transcribed_text = transcribe(f'./outputs/output_{clip_number}.mp4')
     content = f'Transcription for clip {clip_number}: {transcribed_text}'
-    with open('output.txt', 'a') as file:
-        file.write(content, '\n')
     response = chat_session.send_message(transcribed_text)
-
-    
-
+    with open('output.txt', 'a') as file:
+        file.write(content + '\n' + response.text + '\n\n')
 
 
 def transcribe(file_path):
