@@ -140,12 +140,12 @@ def generate_frames():
         boxes = result.boxes.xyxy
         
         out.write(frame)
+        annotated = frame.copy()
 
         if len(boxes) != 0:
             file_name = 'firebase_photos/frame.jpg'
             box = boxes[0]
             x1, y1, x2, y2 = map(int, box)  # Convert box coordinates to integers
-            annotated = frame.copy()
             # Draw the bounding box on the frame
             cv2.rectangle(annotated, (x1, y1), (x2, y2), (255, 0, 0), 2)
 
@@ -155,7 +155,7 @@ def generate_frames():
             cv2.imwrite(file_name, frame)
         
         
-        if time.time() - start_time >= 10:
+        if time.time() - start_time >= 15:
             file_name = 'firebase_photos/frame.jpg'
             out.release()
             thread = Thread(target=process_video, args={clip_number})
@@ -164,18 +164,44 @@ def generate_frames():
             start_time = time.time()
             out = cv2.VideoWriter(f'./outputs/output_{clip_number}.mp4', fourcc, 20.0, (frame_width, frame_height))
             
-            friends = get_user_friends(uid)
+            if len(boxes) != 0:
 
-            index = unfamiliar_face_detected(file_name) != -1
+                index = unfamiliar_face_detected(file_name)
 
-            url = generate_random_uid()
-            if (index != -1):
-                add_photo_url_to_friend(uid, index, f'{url}.jpg')
-            else:
-                #check if there is a name
-                pass
-                
-            upload_file_to_storage('firebase_photos/frame.jpg', f'photos/{url}.jpg')
+                url = generate_random_uid()
+                if (index != -1):
+                    add_photo_url_to_friend(uid, index, f'{url}.jpg')
+                elif (index == -2):
+                    pass
+                else:
+                    try:
+                        with open("output.txt", "r") as file:
+                            friend_name = file.readline()
+                            doc_ref = db.collection("users").document(uid)
+
+                            try:
+                                doc = doc_ref.get()
+
+                                if doc.exists:
+                                    doc_data = doc.to_dict()
+                                    friends = doc_data.get('friends', [])
+                                    friends.append({
+                                        'location': "University of Waterloo",
+                                        'lastSeen': time.time(),
+                                        'name': friend_name,
+                                        'photoUrl': [f'{url}.jpg'],
+                                        'summary': file.read()
+                                    })
+
+                                    doc_ref.update({'friends': friends})
+                            except Exception as e:
+                                print(f"Error updating document: {e}")
+                            
+                        
+                    except:
+                        pass
+                    
+                upload_file_to_storage('firebase_photos/frame.jpg', f'photos/{url}.jpg')
 
         # Encode the frame in JPEG format
         _, buffer = cv2.imencode('.jpg', annotated)
@@ -415,19 +441,19 @@ def generate_random_uid():
 def unfamiliar_face_detected(image_path):
 
     if uid is None:
-        return False
+        return -2
     friends = get_user_friends(uid)
 
     for j, friend in enumerate(friends):
         urls = friend.get('photoUrl', [])
 
-        for i in range(min(len(urls), 3)):
+        for i in range(min(len(urls), 5)):
             url = urls[i]
             download_file_from_storage(f"photos/{url}", f"firebase_photos/{url}")
-            if compare_faces(image_path, f"firebase_photos/{url}"):
+            if compare_faces(image_path, f"firebase_photos/{url}", 0.35):
                 return j
     
-        return -1
+    return -1
 
 
 
