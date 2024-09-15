@@ -1,5 +1,5 @@
 from threading import Thread
-from flask import Flask, Response, send_from_directory, render_template
+from flask import Flask, Response, jsonify, request, send_from_directory, render_template
 import cv2
 import os
 import requests
@@ -9,13 +9,39 @@ from ultralytics import YOLO
 import os
 import google.generativeai as genai
 from dotenv import load_dotenv
+import firebase_admin
+from firebase_admin import credentials, storage
 
+app = Flask(__name__)
 
+# gemini api
 load_dotenv()
-
 gemini_api_key = os.getenv("GEMINI_API_KEY")
-
 genai.configure(api_key=gemini_api_key)
+
+
+# Initialize Firebase Storage
+cred = credentials.Certificate("firebase-adminsdk.json")
+firebase_admin.initialize_app(cred, {
+    'storageBucket': 'your-project-id.appspot.com'
+})
+bucket = storage.bucket()
+
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+
+    # Upload file to Firebase Storage
+    blob = bucket.blob(file.filename)
+    blob.upload_from_file(file)
+
+    return jsonify({'message': f'File {file.filename} uploaded successfully'}), 200
+
 
 # Create the model
 generation_config = {
@@ -70,8 +96,6 @@ history=[
 )
 model = YOLO("./best.pt")
 
-app = Flask(__name__)
-
 # Initialize camera and face detection model (Haar Cascade)
 cap = cv2.VideoCapture(0)
 # face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
@@ -94,7 +118,7 @@ def generate_frames():
             break
 
         # Convert frame to grayscale for face detection
-        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        # gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         # Detect faces in the frame
         # faces = face_cascade.detectMultiScale(gray_frame, 1.3, 5)
@@ -106,9 +130,9 @@ def generate_frames():
         if len(boxes) != 0:
             box = boxes[0]
             x1, y1, x2, y2 = map(int, box)  # Convert box coordinates to integers
-            
+            annotated = frame.copy()
             # Draw the bounding box on the frame
-            cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
+            cv2.rectangle(annotated, (x1, y1), (x2, y2), (255, 0, 0), 2)
 
             # h, w, _ = frame.shape
             # frame = frame[y1:y2, x1:x2]
@@ -125,7 +149,7 @@ def generate_frames():
             out = cv2.VideoWriter(f'./outputs/output_{clip_number}.mp4', fourcc, 20.0, (frame_width, frame_height))
 
         # Encode the frame in JPEG format
-        _, buffer = cv2.imencode('.jpg', frame)
+        _, buffer = cv2.imencode('.jpg', annotated)
         frame_bytes = buffer.tobytes()
 
         # Yield the frame to create a stream
@@ -167,6 +191,7 @@ def index():
 @app.route('/static/<path:path>')
 def static_files(path):
     return send_from_directory(directory='static', path=path)
+
 
 if __name__ == "__main__":
 
