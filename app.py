@@ -151,6 +151,7 @@ def recognize():
     if (index != -1):
         if index != prev_index:
             chat_session = start_chat()
+        prev_index = index
         
         add_photo_url_to_friend(uid, index, f'{url}.jpg')
         response = chat_session.send_message("Previous responses: " + friends[index].get('name', '') + '\n' + friends[index].get('summary', ''))
@@ -221,7 +222,7 @@ def generate_frames():
             box = boxes[0]
             x1, y1, x2, y2 = map(int, box)  # Convert box coordinates to integers
             # Draw the bounding box on the frame
-            cv2.rectangle(annotated, (x1, y1), (x2, y2), (255, 0, 0), 2)
+            # cv2.rectangle(annotated, (x1, y1), (x2, y2), (255, 0, 0), 2)
 
             # h, w, _ = frame.shape
             # frame = frame[y1:y2, x1:x2]
