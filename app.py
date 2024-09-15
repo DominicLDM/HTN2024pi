@@ -11,6 +11,7 @@ import os
 import google.generativeai as genai
 from dotenv import load_dotenv
 import firebase_admin
+import face_recognition
 from firebase_admin import credentials, storage, firestore
 
 app = Flask(__name__)
@@ -22,7 +23,7 @@ genai.configure(api_key=gemini_api_key)
 
 
 # Initialize Firebase Storage
-cred = credentials.Certificate("firebase-adminsdk.json")
+cred = credentials.Certificate("./firebase-adminsdk.json")
 firebase_admin.initialize_app(cred, {
     'storageBucket': os.getenv("STORAGE_ADDRESS")
 })
@@ -92,6 +93,26 @@ frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 
+def get_uid():
+    doc_ref = db.collection("rpi").document("activeUser")
+
+    try:
+        # Get the document
+        doc = doc_ref.get()
+
+        # Check if the document exists
+        if doc.exists:
+            # Return the document data
+            return doc.to_dict().get("uid", None)
+        else:
+            print("No such document!")
+            return None
+    except Exception as e:
+        print(f"Error retrieving document: {e}")
+        return None
+
+uid = get_uid()
+
 # Function to generate frames
 def generate_frames():
     clip_number = 0
@@ -143,13 +164,13 @@ def generate_frames():
             start_time = time.time()
             out = cv2.VideoWriter(f'./outputs/output_{clip_number}.mp4', fourcc, 20.0, (frame_width, frame_height))
             
-            friends = get_user_friends(get_uid())
+            friends = get_user_friends(uid)
 
             index = unfamiliar_face_detected(file_name) != -1
 
             url = generate_random_uid()
             if (index != -1):
-                add_photo_url_to_friend(get_uid(), index, f'{url}.jpg')
+                add_photo_url_to_friend(uid, index, f'{url}.jpg')
             else:
                 #check if there is a name
                 pass
@@ -340,6 +361,7 @@ def compare_faces(image_path1, image_path2, tolerance=0.6):
     :param tolerance: Similarity threshold (default is 0.6).
     :return: True if the faces are similar, False otherwise.
     """
+    print("Comparing faces...")
     # Load and get face encodings
     image1 = load_image(image_path1)
     image2 = load_image(image_path2)
@@ -363,7 +385,7 @@ def get_user_friends(uid):
     """
     # Path to the user's document (replace `uid` dynamically)
     print(uid)
-    doc_ref = db.document(f"users/{uid}")
+    doc_ref = db.collection("users").document(uid)
 
     try:
         # Get the document
@@ -391,11 +413,9 @@ def generate_random_uid():
     return str(uuid.uuid4())
 
 def unfamiliar_face_detected(image_path):
-    uid = get_uid()
 
     if uid is None:
         return False
-    
     friends = get_user_friends(uid)
 
     for j, friend in enumerate(friends):
@@ -404,28 +424,12 @@ def unfamiliar_face_detected(image_path):
         for i in range(min(len(urls), 3)):
             url = urls[i]
             download_file_from_storage(f"photos/{url}", f"firebase_photos/{url}")
-            if compare_faces(image_path, url):
+            if compare_faces(image_path, f"firebase_photos/{url}"):
                 return j
     
-    return -1
+        return -1
 
-def get_uid():
-    doc_ref = db.collection("rpi").document("activeUser")
 
-    try:
-        # Get the document
-        doc = doc_ref.get()
-
-        # Check if the document exists
-        if doc.exists:
-            # Return the document data
-            return doc.to_dict().get("uid", None)
-        else:
-            print("No such document!")
-            return None
-    except Exception as e:
-        print(f"Error retrieving document: {e}")
-        return None
 
 if __name__ == "__main__":
 
