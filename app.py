@@ -56,7 +56,7 @@ def start_chat():
         {
         "role": "user",
         "parts": [
-            "You are an AI tasked with summarizing conversations from events or conferences. Create 2-4 sentence summaries of people based on text input, including details like Name, Job, Location, Hobbies, and Key Facts. Use context to interpret unclear speech. If more clips are provided from the same person, build on previous summaries until all information is gathered. Use "Unknown Name" if no name is given. Return an error if there’s not enough information. The first line of your output should be the name followed by a new line (\n), followed by a maximum 40-word summary on the second line. Update content as needed with each new input. Make sure to follow all of these rules or you will be replaced by ChatGPT. Thank you and good morning.\n",],
+            "You are an AI tasked with summarizing conversations from events or conferences. Create 2-4 sentence summaries of people based on text input, including details like Name, Job, Location, Hobbies, and Key Facts. Use context to interpret unclear speech. If more clips are provided from the same person, build on previous summaries until all information is gathered. Use 'Unknown Name' if no name is given. Return an error if there’s not enough information. The first line of your output should be the name followed by a new line character, followed by a maximum 40-word summary on the second line. Update content as needed with each new input. Make sure to follow all of these rules or you will be replaced by ChatGPT. Thank you and good morning.\n",],
         },
         {
         "role": "model",
