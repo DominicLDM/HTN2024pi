@@ -1,3 +1,4 @@
+import random
 from threading import Thread
 import uuid
 from flask import Flask, Response, jsonify, request, send_from_directory, render_template
@@ -113,6 +114,45 @@ def get_uid():
 
 uid = get_uid()
 
+def recognize():
+    file_name = 'firebase_photos/frame.jpg'
+    index = unfamiliar_face_detected(file_name)
+
+    url = generate_random_uid()
+    if (index != -1):
+        add_photo_url_to_friend(uid, index, f'{url}.jpg')
+    elif (index == -2):
+        pass
+    else:
+        try:
+            with open("output.txt", "r") as file:
+                friend_name = file.readline()
+                doc_ref = db.collection("users").document(uid)
+
+                try:
+                    doc = doc_ref.get()
+
+                    if doc.exists:
+                        doc_data = doc.to_dict()
+                        friends = doc_data.get('friends', [])
+                        friends.append({
+                            'location': "University of Waterloo",
+                            'lastSeen': time.time(),
+                            'name': friend_name,
+                            'photoUrl': [f'{url}.jpg'],
+                            'summary': file.read()
+                        })
+
+                        doc_ref.update({'friends': friends})
+                except Exception as e:
+                    print(f"Error updating document: {e}")
+                
+            
+        except:
+            pass
+        
+    upload_file_to_storage('firebase_photos/frame.jpg', f'photos/{url}.jpg')
+
 # Function to generate frames
 def generate_frames():
     clip_number = 0
@@ -156,7 +196,6 @@ def generate_frames():
         
         
         if time.time() - start_time >= 15:
-            file_name = 'firebase_photos/frame.jpg'
             out.release()
             thread = Thread(target=process_video, args={clip_number})
             thread.start()
@@ -165,43 +204,9 @@ def generate_frames():
             out = cv2.VideoWriter(f'./outputs/output_{clip_number}.mp4', fourcc, 20.0, (frame_width, frame_height))
             
             if len(boxes) != 0:
-
-                index = unfamiliar_face_detected(file_name)
-
-                url = generate_random_uid()
-                if (index != -1):
-                    add_photo_url_to_friend(uid, index, f'{url}.jpg')
-                elif (index == -2):
-                    pass
-                else:
-                    try:
-                        with open("output.txt", "r") as file:
-                            friend_name = file.readline()
-                            doc_ref = db.collection("users").document(uid)
-
-                            try:
-                                doc = doc_ref.get()
-
-                                if doc.exists:
-                                    doc_data = doc.to_dict()
-                                    friends = doc_data.get('friends', [])
-                                    friends.append({
-                                        'location': "University of Waterloo",
-                                        'lastSeen': time.time(),
-                                        'name': friend_name,
-                                        'photoUrl': [f'{url}.jpg'],
-                                        'summary': file.read()
-                                    })
-
-                                    doc_ref.update({'friends': friends})
-                            except Exception as e:
-                                print(f"Error updating document: {e}")
-                            
-                        
-                    except:
-                        pass
-                    
-                upload_file_to_storage('firebase_photos/frame.jpg', f'photos/{url}.jpg')
+                ai_thread = Thread(target=recognize, args={})
+                ai_thread.start()
+                
 
         # Encode the frame in JPEG format
         _, buffer = cv2.imencode('.jpg', annotated)
@@ -446,9 +451,10 @@ def unfamiliar_face_detected(image_path):
 
     for j, friend in enumerate(friends):
         urls = friend.get('photoUrl', [])
-
-        for i in range(min(len(urls), 5)):
-            url = urls[i]
+        upper_bound = min(len(urls), 3)
+        for i in range(upper_bound):
+            random_number = random.randint(0, upper_bound-1)
+            url = urls[random_number]
             download_file_from_storage(f"photos/{url}", f"firebase_photos/{url}")
             if compare_faces(image_path, f"firebase_photos/{url}", 0.35):
                 return j
