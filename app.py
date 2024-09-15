@@ -114,13 +114,37 @@ def get_uid():
 
 uid = get_uid()
 
+def update_content(index, response):
+    with open('output.txt', 'w') as file:
+        file.write(response.text + '\n')
+    
+    with open('output.txt', 'r') as file:
+        doc_ref = db.collection("users").document(uid)
+        name = file.readline()
+
+        try:
+            doc = doc_ref.get()
+
+            if doc.exists:
+                doc_data = doc.to_dict()
+                friends = doc_data.get('friends', [])
+                friends[index] = {'name': name, 'summary': file.read()}
+
+                doc_ref.update({'friends': friends})
+        except Exception as e:
+            print(f"Error updating document: {e}")
+
+
 def recognize():
     file_name = 'firebase_photos/frame.jpg'
     index = unfamiliar_face_detected(file_name)
+    friends = get_user_friends(uid)
 
     url = generate_random_uid()
     if (index != -1):
         add_photo_url_to_friend(uid, index, f'{url}.jpg')
+        response = chat_session.send_message("Previous responses: " + friends[index].get('name', '') + '\n' + friends[index].get('summary', ''))
+        update_content(index, response)
     elif (index == -2):
         pass
     else:
