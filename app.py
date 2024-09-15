@@ -154,8 +154,8 @@ def recognize():
         prev_index = index
         
         add_photo_url_to_friend(uid, index, f'{url}.jpg')
-        response = chat_session.send_message("Previous responses: " + friends[index].get('name', '') + '\n' + friends[index].get('summary', ''))
-        update_content(index, response)
+        # response = chat_session.send_message("Previous responses: " + friends[index].get('name', '') + '\n' + friends[index].get('summary', ''))
+        # update_content(index, response)
     elif (index == -2):
         pass
     else:
