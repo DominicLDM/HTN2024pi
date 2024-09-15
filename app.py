@@ -161,7 +161,7 @@ def recognize():
                         friends = doc_data.get('friends', [])
                         friends.append({
                             'location': "University of Waterloo",
-                            'lastSeen': time.time(),
+                            'lastSeen': "2024-09-15 00:00:00.000",
                             'name': friend_name,
                             'photoUrl': [f'{url}.jpg'],
                             'summary': file.read()
