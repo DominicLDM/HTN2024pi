@@ -97,12 +97,15 @@ def generate_frames():
         result = results[0]
 
         boxes = result.boxes.xyxy
-        
-        for i, box in enumerate(boxes):
+        if len(boxes) != 0:
+            box = boxes[0]
             x1, y1, x2, y2 = map(int, box)  # Convert box coordinates to integers
             
             # Draw the bounding box on the frame
             cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
+
+            # h, w, _ = frame.shape
+            # frame = frame[y1:y2, x1:x2]
 
 
         out.write(frame)
@@ -128,9 +131,11 @@ def generate_frames():
 
 def process_video(clip_number):
     transcribed_text = transcribe(f'./outputs/output_{clip_number}.mp4')
-    print(f'Transcription for clip {clip_number}: {transcribed_text}')
+    content = f'Transcription for clip {clip_number}: {transcribed_text}'
+    with open('output.txt', 'a') as file:
+        file.write(content, '\n')
     response = chat_session.send_message(transcribed_text)
-    print("Summary:", response.text)
+
 
 
 def transcribe(file_path):
