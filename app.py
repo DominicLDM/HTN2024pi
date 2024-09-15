@@ -147,6 +147,8 @@ def recognize():
     index = unfamiliar_face_detected(file_name)
     friends = get_user_friends(uid)
 
+    global prev_index
+
     url = generate_random_uid()
     if (index != -1):
         if index != prev_index:
@@ -154,14 +156,32 @@ def recognize():
         prev_index = index
         
         add_photo_url_to_friend(uid, index, f'{url}.jpg')
-        # response = chat_session.send_message("Previous responses: " + friends[index].get('name', '') + '\n' + friends[index].get('summary', ''))
-        # update_content(index, response)
+        response = chat_session.send_message("Previous responses: " + friends[index].get('name', '') + '\n' + friends[index].get('summary', ''))
+        update_content(index, response)
     elif (index == -2):
         pass
     else:
         try:
             with open("output.txt", "r") as file:
-                friend_name = file.readline()
+                # Read the content of the file
+                content = file.read()
+
+                # Split the content into words
+                words = content.split()
+
+                name = ""
+                summary = ""
+
+                if words:
+                    # Assign the first word to `name`
+                    name = words[0]
+                    
+                    # Assign the rest of the content to `summary`
+                    summary = ' '.join(words[1:]) if len(words) > 1 else ''
+                else:
+                    # If the file is empty or has no valid words
+                    name, summary = None, None
+
                 doc_ref = db.collection("users").document(uid)
 
                 try:
@@ -173,9 +193,9 @@ def recognize():
                         friends.append({
                             'location': "University of Waterloo",
                             'lastSeen': "2024-09-15 00:00:00.000",
-                            'name': friend_name,
+                            'name': name,
                             'photoUrl': [f'{url}.jpg'],
-                            'summary': file.read()
+                            'summary': summary
                         })
 
                         doc_ref.update({'friends': friends})
@@ -192,7 +212,7 @@ def recognize():
 def generate_frames():
     clip_number = 0
     start_time = time.time()
-    out = cv2.VideoWriter(f'./outputs/output_{clip_number}.mp4', fourcc, 20.0, (frame_width, frame_height))
+    out = cv2.VideoWriter(f'./outputs/output_{clip_number}.mp4', fourcc, 30.0, (frame_width, frame_height))
     while True:
         # Capture frame-by-frame from the camera
         ret, frame = cap.read()
@@ -222,7 +242,7 @@ def generate_frames():
             box = boxes[0]
             x1, y1, x2, y2 = map(int, box)  # Convert box coordinates to integers
             # Draw the bounding box on the frame
-            # cv2.rectangle(annotated, (x1, y1), (x2, y2), (255, 0, 0), 2)
+            cv2.rectangle(annotated, (x1, y1), (x2, y2), (255, 0, 0), 2)
 
             # h, w, _ = frame.shape
             # frame = frame[y1:y2, x1:x2]
@@ -486,13 +506,11 @@ def unfamiliar_face_detected(image_path):
 
     for j, friend in enumerate(friends):
         urls = friend.get('photoUrl', [])
-        upper_bound = min(len(urls), 3)
-        for i in range(upper_bound):
-            random_number = random.randint(0, upper_bound-1)
-            url = urls[random_number]
-            download_file_from_storage(f"photos/{url}", f"firebase_photos/{url}")
-            if compare_faces(image_path, f"firebase_photos/{url}", 0.5):
-                return j
+        random_number = random.randint(0, len(urls) - 1)
+        url = urls[random_number]
+        download_file_from_storage(f"photos/{url}", f"firebase_photos/{url}")
+        if compare_faces(image_path, f"firebase_photos/{url}", 0.5):
+            return j
     
     return -1
 
